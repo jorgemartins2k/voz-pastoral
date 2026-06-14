@@ -6,6 +6,7 @@ import nest_asyncio
 import io
 import base64
 import re
+import html
 from datetime import datetime
 
 # Vercel entry point
@@ -26,7 +27,7 @@ def processar_ssml(texto, voz, velocidade, tom):
     ssml = f'''<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">
     <voice name="{voz}">
         <prosody rate="{velocidade}" pitch="{tom}">
-            {texto}
+            {html.escape(texto)}
         </prosody>
     </voice>
 </speak>'''
@@ -78,8 +79,13 @@ def tts_endpoint():
             'caracteres_texto': caracteres_uteis
         })
     except Exception as e:
+        print(f"Erro no endpoint TTS: {str(e)}")
         return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'ok', 'servico': 'edge-tts-pastoral-serverless'})
+
+# Para testes locais: python api/index.py
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
