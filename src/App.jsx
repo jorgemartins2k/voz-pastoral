@@ -138,8 +138,9 @@ function App() {
           <section className="controls-grid">
             <div className="control-item">
               <label htmlFor="vozSelect">🎤 VOZ</label>
-              <select id="vozSelect" value={voz} onChange={(e) => setVoz(e.target.value)}>
-                <option value="pt-BR-AntonioNeural">Antonio · Masculino (Grave) ⭐</option>
+            <select id="vozSelect" value={voz} onChange={(e) => setVoz(e.target.value)}>
+                <option value="pt-BR-DonatoNeural">Donato · Masculino (Maduro, Divino) ⭐</option>
+                <option value="pt-BR-AntonioNeural">Antonio · Masculino (Grave, Pastoral)</option>
                 <option value="pt-BR-ThalitaNeural">Thalita · Feminino (Calmo)</option>
                 <option value="pt-BR-FranciscaNeural">Francisca · Feminino (Natural)</option>
               </select>
