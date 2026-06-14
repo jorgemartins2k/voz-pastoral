@@ -21,9 +21,17 @@ def validar_senha(senha):
     return senha == SENHA_CORRETA
 
 def processar_ssml(texto, voz, velocidade, tom):
+    """
+    Garante suporte total a tags SSML (break, emphasis, prosody, etc).
+    Se o texto já for um bloco <speak>, ele é usado integralmente.
+    Caso contrário, é envolvido em um wrapper SSML mantendo as tags internas.
+    """
     texto = texto.strip()
     if "<speak" in texto and "</speak>" in texto:
+        print("SSML detectado: usando bloco original do usuário.")
         return texto, True
+    
+    print("Texto puro detectado: aplicando wrapper SSML com suporte a tags internas.")
     ssml = f'''<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">
     <voice name="{voz}">
         <prosody rate="{velocidade}" pitch="{tom}">
@@ -32,6 +40,7 @@ def processar_ssml(texto, voz, velocidade, tom):
     </voice>
 </speak>'''
     return ssml, False
+ Riverside
 
 def contar_caracteres_uteis(texto):
     texto_sem_tags = re.sub(r'<[^>]+>', '', texto)
