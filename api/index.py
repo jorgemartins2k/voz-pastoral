@@ -20,18 +20,36 @@ SENHA_CORRETA = "JSDjsd321#$%"
 def validar_senha(senha):
     return senha == SENHA_CORRETA
 
+def sanitize_ssml(text: str) -> str:
+    """
+    Remove tags SSML não suportadas ou problemáticas para o edge-tts.
+    """
+    # Remove tags <emphasis> (não são bem suportadas por todos os modelos)
+    text = re.sub(r'<emphasis[^>]*>', '', text)
+    text = re.sub(r'</emphasis>', '', text)
+    
+    # Remove tags <mstts:express-as> (que podem quebrar o parser dependendo do modelo)
+    text = re.sub(r'<mstts:express-as[^>]*>', '', text)
+    text = re.sub(r'</mstts:express-as>', '', text)
+    
+    # Remove namespaces não suportados
+    text = re.sub(r'xmlns:mstts="[^"]*"', '', text)
+    
+    return text
+
 def processar_ssml(texto, voz, velocidade, tom):
     """
-    Garante suporte total a tags SSML (break, emphasis, prosody, etc).
+    Garante suporte total a tags SSML (break, prosody, etc) com sanitização.
     """
     texto = texto.strip()
+    texto = sanitize_ssml(texto)
     
-    # Caso o usuário já tenha enviado um bloco <speak> completo, usamos ele
+    # Caso o usuário já tenha enviado um bloco <speak> completo, garantimos que não tenha lixo
     if texto.startswith("<speak") and texto.endswith("</speak>"):
         return texto
 
-    # Caso contrário, construímos o bloco SSML com as configurações da interface
-    # IMPORTANTE: Sem espaços extras no início da string
+    # Construímos o bloco SSML garantindo que <prosody> envolva o texto
+    # para respeitar velocidade e tom da interface
     ssml = (
         f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">'
         f'<voice name="{voz}">'
@@ -40,6 +58,7 @@ def processar_ssml(texto, voz, velocidade, tom):
         f'</prosody></voice></speak>'
     )
     return ssml
+ Riverside
 
 def contar_caracteres_uteis(texto):
     texto_sem_tags = re.sub(r'<[^>]+>', '', texto)
