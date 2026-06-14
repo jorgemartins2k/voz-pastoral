@@ -27,7 +27,7 @@ def processar_ssml(texto, voz, velocidade, tom):
     ssml = f'''<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">
     <voice name="{voz}">
         <prosody rate="{velocidade}" pitch="{tom}">
-            {html.escape(texto)}
+            {texto}
         </prosody>
     </voice>
 </speak>'''
