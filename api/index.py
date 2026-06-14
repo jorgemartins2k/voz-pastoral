@@ -79,7 +79,7 @@ async def gerar_audio_edge_tts(texto, voz, velocidade, tom):
     buffer.seek(0)
     return buffer.getvalue()
 
-@app.route('/tts', methods=['POST'])
+@app.route('/api/tts', methods=['POST'])
 def tts_endpoint():
     try:
         dados = request.get_json()
@@ -110,7 +110,7 @@ def tts_endpoint():
         print(f"Erro no endpoint TTS: {str(e)}")
         return jsonify({'erro': str(e)}), 500
 
-@app.route('/health', methods=['GET'])
+@app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'ok', 'servico': 'edge-tts-pastoral-serverless'})
 
