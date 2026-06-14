@@ -283,6 +283,13 @@ code {
 
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+.version-info {
+  margin-top: 1rem;
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
 @media (max-width: 600px) {
   .container { padding: 1rem; }
   .glass-card { padding: 1.5rem; }

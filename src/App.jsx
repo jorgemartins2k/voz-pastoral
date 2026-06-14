@@ -18,7 +18,6 @@ function App() {
             Ele está dormindo.
             <break time="3s"/>
 
-            <!-- Pausa de 30 segundos -->
             <break time="5s"/> <break time="5s"/> <break time="5s"/>
             <break time="5s"/> <break time="5s"/> <break time="5s"/>
 
@@ -202,6 +201,7 @@ function App() {
               <code>&lt;prosody rate="-10%" pitch="-10Hz"&gt;</code> - Tom/Velocidade
             </div>
           </details>
+          <div className="version-info">Build: 2026.06.13.v3 - SSML Active</div>
         </footer>
       </div>
     </div>
