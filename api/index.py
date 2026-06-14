@@ -40,7 +40,6 @@ def processar_ssml(texto, voz, velocidade, tom):
     </voice>
 </speak>'''
     return ssml, False
- Riverside
 
 def contar_caracteres_uteis(texto):
     texto_sem_tags = re.sub(r'<[^>]+>', '', texto)
