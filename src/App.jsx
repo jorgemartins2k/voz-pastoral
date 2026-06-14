@@ -201,7 +201,7 @@ function App() {
               <code>&lt;prosody rate="-10%" pitch="-10Hz"&gt;</code> - Tom/Velocidade
             </div>
           </details>
-          <div className="version-info">Build: 2026.06.13.v5 - Routing Fixed</div>
+          <div className="version-info">Build: 2026.06.13.v6 - Native Routing Active</div>
         </footer>
       </div>
     </div>
