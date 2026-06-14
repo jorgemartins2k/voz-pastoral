@@ -23,23 +23,23 @@ def validar_senha(senha):
 def processar_ssml(texto, voz, velocidade, tom):
     """
     Garante suporte total a tags SSML (break, emphasis, prosody, etc).
-    Se o texto já for um bloco <speak>, ele é usado integralmente.
-    Caso contrário, é envolvido em um wrapper SSML mantendo as tags internas.
     """
     texto = texto.strip()
-    if "<speak" in texto and "</speak>" in texto:
-        print("SSML detectado: usando bloco original do usuário.")
-        return texto, True
     
-    print("Texto puro detectado: aplicando wrapper SSML com suporte a tags internas.")
-    ssml = f'''<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">
-    <voice name="{voz}">
-        <prosody rate="{velocidade}" pitch="{tom}">
-            {texto}
-        </prosody>
-    </voice>
-</speak>'''
-    return ssml, False
+    # Caso o usuário já tenha enviado um bloco <speak> completo, usamos ele
+    if texto.startswith("<speak") and texto.endswith("</speak>"):
+        return texto
+
+    # Caso contrário, construímos o bloco SSML com as configurações da interface
+    # IMPORTANTE: Sem espaços extras no início da string
+    ssml = (
+        f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">'
+        f'<voice name="{voz}">'
+        f'<prosody rate="{velocidade}" pitch="{tom}">'
+        f'{texto}'
+        f'</prosody></voice></speak>'
+    )
+    return ssml
 
 def contar_caracteres_uteis(texto):
     texto_sem_tags = re.sub(r'<[^>]+>', '', texto)
@@ -47,11 +47,12 @@ def contar_caracteres_uteis(texto):
     return len(texto_sem_tags)
 
 async def gerar_audio_edge_tts(texto, voz, velocidade, tom):
-    ssml_final, ja_e_ssml = processar_ssml(texto, voz, velocidade, tom)
-    if ja_e_ssml:
-        communicate = edge_tts.Communicate(ssml_final, voice=voz)
-    else:
-        communicate = edge_tts.Communicate(ssml_final, voice=voz, rate=velocidade, pitch=tom)
+    ssml_final = processar_ssml(texto, voz, velocidade, tom)
+    
+    # Se passar SSML para o Communicate, NÃO deve-se passar voice, rate ou pitch separadamente
+    # pois isso faz o edge-tts ignorar o SSML ou gerar blocos aninhados inválidos.
+    communicate = edge_tts.Communicate(ssml_final)
+    
     buffer = io.BytesIO()
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
