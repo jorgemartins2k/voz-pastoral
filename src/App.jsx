@@ -3,31 +3,14 @@ import './App.css';
 
 function App() {
   const [senha, setSenha] = useState('');
-  const [texto, setTexto] = useState(`<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">
-    <voice name="pt-BR-AntonioNeural">
-        <prosody rate="-10%" pitch="-10Hz">
-            Meus queridos irmãos, minhas queridas irmãs.
-            <break time="3s"/>
+  const [texto, setTexto] = useState(`Meus queridos irmãos.... 
 
-            Eu vi seus olhos perderem o brilho.
-            <break time="2s"/>
+Eu vi seus olhos perderem o brilho.
+...
+Eu sei o peso que você carrega.
 
-            <emphasis level="strong">O seu sonho não morreu.</emphasis>
-            <break time="2s"/>
+O seu sonho não morreu. Ele está dormindo. .... E Eu vou despertá-lo.`);
 
-            Ele está dormindo.
-            <break time="3s"/>
-
-            <break time="5s"/> <break time="5s"/> <break time="5s"/>
-            <break time="5s"/> <break time="5s"/> <break time="5s"/>
-
-            E Eu vou despertá-lo.
-            <break time="3s"/>
-
-            Fique na Minha paz.
-        </prosody>
-    </voice>
-</speak>`);
   const [voz, setVoz] = useState('pt-BR-AntonioNeural');
   const [velocidade, setVelocidade] = useState('-10%');
   const [tom, setTom] = useState('-10Hz');
@@ -194,11 +177,12 @@ function App() {
 
         <footer className="footer-details">
           <details className="help-details">
-            <summary>📋 Guia Rápido de SSML</summary>
+            <summary>📋 Guia de Pausas (Roteiro Limpo)</summary>
             <div className="details-content">
-              <code>&lt;break time="5s"/&gt;</code> - Pausa (máx 5s) <br />
-              <code>&lt;emphasis level="strong"&gt;...&lt;/emphasis&gt;</code> - Ênfase <br />
-              <code>&lt;prosody rate="-10%" pitch="-10Hz"&gt;</code> - Tom/Velocidade
+              <code>....</code> - Pausa Longa (2s) <br />
+              <code>...</code> - Pausa Média (1s) <br />
+              <code>..</code> - Pausa Curta (0.5s) <br />
+              <code>&lt;break time="3s"/&gt;</code> - SSML ainda suportado
             </div>
           </details>
           <div className="version-info">Build: 2026.06.13.v6 - Native Routing Active</div>
