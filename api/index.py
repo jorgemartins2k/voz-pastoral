@@ -43,16 +43,15 @@ def processar_ssml(texto, voz, velocidade, tom):
 
     texto = re.sub(r'\.{2,}', converter_pontos, texto)
     
-    # EQUALIZAÇÃO PASTORAL (Conforme solicitado pelo usuário)
-    # Nota: edge-tts pode ignorar mstts:express-as, mas incluímos conforme pedido.
+    # EQUALIZAÇÃO PASTORAL (Simplificada para compatibilidade total)
+    # Removemos mstts:express-as pois o edge-tts narra essas tags como texto.
+    # Usamos apenas prosody para o efeito de voz profunda/deus.
     ssml = (
-        f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
-        f'xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="pt-BR">'
+        f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">'
         f'<voice name="{voz}">'
-        f'<mstts:express-as style="calm" styledegree="2">'
         f'<prosody rate="{velocidade}" pitch="{tom}" volume="+10%">'
         f'{texto}'
-        f'</prosody></mstts:express-as></voice></speak>'
+        f'</prosody></voice></speak>'
     )
     return ssml.strip()
 
