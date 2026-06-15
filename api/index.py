@@ -43,44 +43,39 @@ async def gerar_audio_edge_tts(texto, voz, velocidade, tom):
         raise Exception(f"Falha no Edge-TTS: {str(e)}")
 
 def contar_caracteres_uteis(texto):
-    texto_sem_tags = re.sub(r'<[^>]+>', '', texto)
-    texto_sem_tags = re.sub(r'\s+', ' ', texto_sem_tags).strip()
-    return len(texto_sem_tags)
+    if not texto: return 0
+    # Remove tags SSML para contagem
+    texto_limpo = re.sub(r'<[^>]+>', '', texto)
+    return len(texto_limpo.strip())
 
 def processar_ssml(texto, voz, velocidade, tom):
-    """
-    Garante suporte total a tags SSML e aplica equalização pastoral.
-    """
+    """Garante suporte total a tags SSML e aplica equalização pastoral."""
     texto = texto.strip()
     
-    # Escapa caracteres XML básicos (evita erro 500 se o usuário usar & ou <)
-    # Primeiro escapamos tudo, depois voltamos o que queremos que seja tag
-    texto = html.escape(texto)
-    
-    # Detecção robusta de SSML
-    if re.search(r'^\s*&lt;speak', texto, re.IGNORECASE):
-        # Se o usuário enviou SSML, desfazemos o escape do bloco speak
-        # para que o motor reconheça como comando.
-        texto = html.unescape(texto)
-        texto = re.sub(r'^\s*(<\?xml[^>]*\?>\s*)?', '', texto).strip()
+    # Se já for SSML (começa com <speak), enviamos direto sem mexer
+    if texto.startswith("<speak") or texto.startswith("<?xml"):
         return texto
 
-    # CONVERSÃO DE PONTUAÇÃO PARA PAUSAS
+    # Para texto puro:
+    # 1. Escapamos caracteres que quebram o XML estrutural
+    texto = texto.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    
+    # 2. Convertemos as pontuações em pausas reais
     def converter_pontos(match):
-        dots = match.group(0)
-        n = len(dots)
-        if n >= 4: return ' <break time="2000ms"/> '
-        if n == 3: return ' <break time="1000ms"/> '
-        if n == 2: return ' <break time="500ms"/> '
-        return dots
+        n = len(match.group(0))
+        if n >= 4: return '<break time="2000ms"/>'
+        if n == 3: return '<break time="1000ms"/>'
+        if n == 2: return '<break time="500ms"/>'
+        return match.group(0)
 
     texto = re.sub(r'\.{2,}', converter_pontos, texto)
     
-    # EQUALIZAÇÃO PASTORAL (Voz masculina profunda)
+    # 3. Montamos o SSML final sem quebras de linha entre as tags estruturais
+    # Isso evita que o edge-tts se perca na detecção do modo SSML
     ssml = (
         f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">'
         f'<voice name="{voz}">'
-        f'<prosody rate="{velocidade}" pitch="{tom}" volume="+10%">'
+        f'<prosody rate="{velocidade}" pitch="{tom}">'
         f'{texto}'
         f'</prosody></voice></speak>'
     )
