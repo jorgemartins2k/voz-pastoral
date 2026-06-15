@@ -29,18 +29,29 @@ def processar_ssml(texto, voz, velocidade, tom):
     
     # Detecção robusta de SSML (ignora espaços iniciais e declarações XML)
     if re.search(r'^\s*(<\?xml[^>]*\?>\s*)?<speak', texto, re.IGNORECASE):
-        # Remove namespaces e tags problemáticas apenas se necessário, 
-        # mas aqui confiamos que se o usuário enviou <speak>, ele sabe o que está fazendo.
-        # Apenas limpamos espaços extras para evitar quebras no parser do edge-tts
+        # Se já for SSML, removemos espaços/newlines iniciais para garantir 
+        # que o edge-tts detecte o <speak logo no início.
+        texto = re.sub(r'^\s*(<\?xml[^>]*\?>\s*)?', '', texto).strip()
         return texto
 
     # CONVERSÃO DE PONTUAÇÃO PARA PAUSAS (Regra do Roteiro Limpo)
     # .... -> 2s, ... -> 1s, .. -> 0.5s
-    texto = re.sub(r'\.{4,}', ' <break time="2s"/> ', texto)
-    texto = re.sub(r'\.{3}', ' <break time="1s"/> ', texto)
-    texto = re.sub(r'\.{2}', ' <break time="500ms"/> ', texto)
+    # Fazemos isso ANTES de qualquer outro tratamento
+    def converter_pontos(match):
+        dots = match.group(0)
+        n = len(dots)
+        if n >= 4: return ' <break time="2000ms"/> '
+        if n == 3: return ' <break time="1000ms"/> '
+        if n == 2: return ' <break time="500ms"/> '
+        return dots
+
+    texto = re.sub(r'\.{2,}', converter_pontos, texto)
     
-    # Construímos o bloco SSML garantindo que <prosody> envolva o texto
+    # Escapa caracteres XML básicos no conteúdo do texto (exceto nossas tags injetadas)
+    # Mas como já injetamos <break>, precisamos ter cuidado.
+    # Na verdade, o edge-tts costuma lidar bem com texto puro se o bloco for <speak>.
+    
+    # Construímos o bloco SSML SEM NEWLINES entre as tags estruturais
     ssml = (
         f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">'
         f'<voice name="{voz}">'
@@ -48,7 +59,7 @@ def processar_ssml(texto, voz, velocidade, tom):
         f'{texto}'
         f'</prosody></voice></speak>'
     )
-    return ssml
+    return ssml.strip()
 
 
 def contar_caracteres_uteis(texto):
