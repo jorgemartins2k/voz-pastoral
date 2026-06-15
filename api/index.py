@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
+import edge_tts
+import asyncio
+import nest_asyncio
 import io
 import base64
 import re
-import html
 import os
 from datetime import datetime
 
@@ -12,72 +13,69 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# CONFIGURAÇÕES (Use variáveis de ambiente no Vercel!)
+nest_asyncio.apply()
+
 SENHA_CORRETA = "JSDjsd321#$%"
-AZURE_API_KEY = os.getenv("AZURE_API_KEY", "7b0b691656e4480cbda68735165977a4") # Fallback para chave do usuário se existir
-AZURE_REGION = os.getenv("AZURE_REGION", "brazilsouth")
 
 def validar_senha(senha):
     return senha == SENHA_CORRETA
 
 def contar_caracteres_uteis(texto):
     if not texto: return 0
+    # Remove qualquer tag de fallback ou espaços extras
     texto_limpo = re.sub(r'<[^>]+>', '', texto)
     return len(texto_limpo.strip())
 
-def processar_ssml(texto, voz, velocidade, tom):
+def processar_texto_para_pausas(texto):
     """
-    Garante suporte total a tags SSML e aplica equalização pastoral oficial (Azure).
+    Converte pontuações extras em padrões que o motor TTS interpreta como silêncio, 
+    SEM usar tags SSML (para evitar que sejam narradas).
     """
     texto = texto.strip()
     
-    # Se já for SSML puro, enviamos direto
-    if texto.startswith("<speak") or texto.startswith("<?xml"):
+    # Se o usuário enviou SSML deliberadamente, avisamos que pode narrar
+    if texto.startswith("<speak"):
         return texto
 
-    # Para texto puro:
-    # 1. Escapamos caracteres XML
-    texto = html.escape(texto)
-    
-    # 2. Convertemos as pontuações em pausas reais (Roteiro Limpo)
-    def converter_pontos(match):
+    # Regra do Roteiro Limpo (Sem Tags):
+    # . . . . (pontos com espaços) costumam gerar silêncio natural em cada ponto
+    # .... ->  . . . . 
+    # ...  ->  . . .
+    # ..   ->  . .
+    def repetir_pontos(match):
         n = len(match.group(0))
-        if n >= 4: return '<break time="2000ms"/>'
-        if n == 3: return '<break time="1000ms"/>'
-        if n == 2: return '<break time="500ms"/>'
-        return match.group(0)
+        return " " + ". " * n + " "
 
-    texto = re.sub(r'\.{2,}', converter_pontos, texto)
-    
-    # 3. Montamos o SSML com tags oficiais do Azure para estilo "calm"
-    ssml = (
-        f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
-        f'xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="pt-BR">'
-        f'<voice name="{voz}">'
-        f'<mstts:express-as style="calm" styledegree="1.5">'
-        f'<prosody rate="{velocidade}" pitch="{tom}" volume="+15%">'
-        f'{texto}'
-        f'</prosody></mstts:express-as></voice></speak>'
-    )
-    return ssml
+    texto = re.sub(r'\.{2,}', repetir_pontos, texto)
+    return texto
 
-def gerar_audio_azure(ssml):
-    """Envia SSML para Azure TTS e retorna o áudio"""
-    url = f"https://{AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
+async def gerar_audio_edge_tts(texto, voz, velocidade, tom):
+    # Processamos o texto para pausas naturais (sem tags)
+    texto_processado = processar_texto_para_pausas(texto)
     
-    headers = {
-        "Ocp-Apim-Subscription-Key": AZURE_API_KEY,
-        "Content-Type": "application/ssml+xml",
-        "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
-        "User-Agent": "VozPastoral/2.0"
-    }
-    
-    response = requests.post(url, headers=headers, data=ssml.encode('utf-8'))
-    
-    if response.status_code == 200:
-        return response.content
+    # Se o texto processado ainda for SSML (porque o usuário digitou), usamos direto
+    if texto_processado.startswith("<speak"):
+        communicate = edge_tts.Communicate(texto_processado)
     else:
-        raise Exception(f"Erro Azure ({response.status_code}): {response.text}")
+        # Se for texto puro (nosso padrão), usamos os parâmetros do Communicate
+        # Isso garante que NUNCA narre tags, pois o edge-tts cuidará do SSML interno.
+        communicate = edge_tts.Communicate(
+            texto_processado, 
+            voice=voz, 
+            rate=velocidade, 
+            pitch=tom
+        )
+    
+    buffer = io.BytesIO()
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            buffer.write(chunk["data"])
+    
+    if buffer.tell() == 0:
+        raise Exception("Nenhum áudio gerado.")
+        
+    buffer.seek(0)
+    return buffer.getvalue()
 
 @app.route('/api/tts', methods=['POST'])
 @app.route('/tts', methods=['POST'])
@@ -96,9 +94,8 @@ def tts_endpoint():
         if not texto:
             return jsonify({'erro': 'Digite o texto para conversão'}), 400
 
-        # Processa e gera
-        ssml_final = processar_ssml(texto, voz_nome, velocidade, tom)
-        audio_bytes = gerar_audio_azure(ssml_final)
+        # Roda o processamento async
+        audio_bytes = asyncio.run(gerar_audio_edge_tts(texto, voz_nome, velocidade, tom))
         
         audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
         caracteres_uteis = contar_caracteres_uteis(texto)
@@ -110,13 +107,12 @@ def tts_endpoint():
             'caracteres_texto': caracteres_uteis
         })
     except Exception as e:
-        print(f"Erro no endpoint TTS: {str(e)}")
         return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/health', methods=['GET'])
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({'status': 'ok', 'servico': 'azure-tts-pastoral'})
+    return jsonify({'status': 'ok', 'servico': 'edge-tts-free-pastoral'})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
