@@ -21,14 +21,47 @@ def validar_senha(senha):
     return senha == SENHA_CORRETA
 
 
+async def gerar_audio_edge_tts(texto, voz, velocidade, tom):
+    ssml_final = processar_ssml(texto, voz, velocidade, tom)
+    
+    # Tentamos criar o objeto communicate. 
+    # Se houver erro de rede ou DNS, o stream() irá falhar.
+    try:
+        communicate = edge_tts.Communicate(ssml_final)
+        
+        buffer = io.BytesIO()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                buffer.write(chunk["data"])
+        
+        if buffer.tell() == 0:
+            raise Exception("Nenhum áudio foi gerado pelo serviço.")
+            
+        buffer.seek(0)
+        return buffer.getvalue()
+    except Exception as e:
+        raise Exception(f"Falha no Edge-TTS: {str(e)}")
+
+def contar_caracteres_uteis(texto):
+    texto_sem_tags = re.sub(r'<[^>]+>', '', texto)
+    texto_sem_tags = re.sub(r'\s+', ' ', texto_sem_tags).strip()
+    return len(texto_sem_tags)
+
 def processar_ssml(texto, voz, velocidade, tom):
     """
     Garante suporte total a tags SSML e aplica equalização pastoral.
     """
     texto = texto.strip()
     
+    # Escapa caracteres XML básicos (evita erro 500 se o usuário usar & ou <)
+    # Primeiro escapamos tudo, depois voltamos o que queremos que seja tag
+    texto = html.escape(texto)
+    
     # Detecção robusta de SSML
-    if re.search(r'^\s*(<\?xml[^>]*\?>\s*)?<speak', texto, re.IGNORECASE):
+    if re.search(r'^\s*&lt;speak', texto, re.IGNORECASE):
+        # Se o usuário enviou SSML, desfazemos o escape do bloco speak
+        # para que o motor reconheça como comando.
+        texto = html.unescape(texto)
         texto = re.sub(r'^\s*(<\?xml[^>]*\?>\s*)?', '', texto).strip()
         return texto
 
@@ -43,9 +76,7 @@ def processar_ssml(texto, voz, velocidade, tom):
 
     texto = re.sub(r'\.{2,}', converter_pontos, texto)
     
-    # EQUALIZAÇÃO PASTORAL (Simplificada para compatibilidade total)
-    # Removemos mstts:express-as pois o edge-tts narra essas tags como texto.
-    # Usamos apenas prosody para o efeito de voz profunda/deus.
+    # EQUALIZAÇÃO PASTORAL (Voz masculina profunda)
     ssml = (
         f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">'
         f'<voice name="{voz}">'
@@ -54,26 +85,6 @@ def processar_ssml(texto, voz, velocidade, tom):
         f'</prosody></voice></speak>'
     )
     return ssml.strip()
-
-
-def contar_caracteres_uteis(texto):
-    texto_sem_tags = re.sub(r'<[^>]+>', '', texto)
-    texto_sem_tags = re.sub(r'\s+', ' ', texto_sem_tags).strip()
-    return len(texto_sem_tags)
-
-async def gerar_audio_edge_tts(texto, voz, velocidade, tom):
-    ssml_final = processar_ssml(texto, voz, velocidade, tom)
-    
-    # Se passar SSML para o Communicate, NÃO deve-se passar voice, rate ou pitch separadamente
-    # pois isso faz o edge-tts ignorar o SSML ou gerar blocos aninhados inválidos.
-    communicate = edge_tts.Communicate(ssml_final)
-    
-    buffer = io.BytesIO()
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            buffer.write(chunk["data"])
-    buffer.seek(0)
-    return buffer.getvalue()
 
 @app.route('/api/tts', methods=['POST'])
 @app.route('/tts', methods=['POST'])
